@@ -1,3 +1,4 @@
+
 # Python
 __pycache__/
 *.py[cod]
@@ -28,3 +29,46 @@ Thumbs.db
 # Temporal
 temp/
 tmp/
+=======
+
+# =========================================================
+# === 1. Entornos Virtuales y Dependencias (Imprescindible)
+# =========================================================
+.venv/
+venv/
+env/
+*.exe
+*.dll
+*.so
+*.dylib
+
+# =========================================================
+# === 2. Archivos de Python (Caché, Metadata)
+# =========================================================
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.vscode/             # Configuraciones locales de VS Code
+
+# =========================================================
+# === 3. Archivos de Visión Artificial / Modelos (Grandes)
+# =========================================================
+modelos/
+bestCS.pt
+bestPruebaCL.pt
+
+# =========================================================
+# === 4. Archivos de Datos (Datasets)
+# =========================================================
+*.zip               # Archivos de dataset descargados
+*.tar.gz
+data/               # Carpeta común para datasets RAW
+
+# =========================================================
+# === 5. Videos 
+# =========================================================
+Videos/
+videoCL.mp4
+videoCS.mp4
+>>>>>>> 5d588a991d5e2d24b04bd8a6c83185f0dbbe5643
