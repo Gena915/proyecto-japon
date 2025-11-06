@@ -85,11 +85,11 @@ class SistemaPLCYOLO:
         panel_superior.pack(side=tk.TOP, fill=tk.X, padx=10, pady=10)
         
         ttk.Label(panel_superior, text="Sistema PLC-YOLO", 
-                 font=('Arial', 16, 'bold')).pack(side=tk.LEFT)
+                font=('Arial', 16, 'bold')).pack(side=tk.LEFT)
         
         self.status_var = tk.StringVar(value="Sistema detenido")
         ttk.Label(panel_superior, textvariable=self.status_var, 
-                 font=('Arial', 10)).pack(side=tk.RIGHT)
+                font=('Arial', 10)).pack(side=tk.RIGHT)
         
         # ==================== PANEL IZQUIERDO (Controles) ====================
         panel_controles = ttk.LabelFrame(self.root, text="Controles", padding=10)
@@ -99,16 +99,16 @@ class SistemaPLCYOLO:
         ttk.Label(panel_controles, text="PLC", font=('Arial', 12, 'bold')).pack(anchor=tk.W)
         
         self.btn_conectar_plc = ttk.Button(panel_controles, text="🔌 Conectar PLC", 
-                                          command=self._conectar_plc)
+                                        command=self._conectar_plc)
         self.btn_conectar_plc.pack(fill=tk.X, pady=5)
         
         self.btn_desconectar_plc = ttk.Button(panel_controles, text="Desconectar PLC", 
-                                             command=self._desconectar_plc, state=tk.DISABLED)
+                                        command=self._desconectar_plc, state=tk.DISABLED)
         self.btn_desconectar_plc.pack(fill=tk.X, pady=5)
         
         self.plc_status_var = tk.StringVar(value="Desconectado")
         ttk.Label(panel_controles, textvariable=self.plc_status_var, 
-                 foreground='red').pack(anchor=tk.W, pady=5)
+                foreground='red').pack(anchor=tk.W, pady=5)
         
         ttk.Separator(panel_controles, orient=tk.HORIZONTAL).pack(fill=tk.X, pady=10)
         
@@ -116,7 +116,7 @@ class SistemaPLCYOLO:
         ttk.Label(panel_controles, text="Modelo YOLO", font=('Arial', 12, 'bold')).pack(anchor=tk.W)
         
         ttk.Button(panel_controles, text="📁 Cargar Modelo (.pt)", 
-                  command=self._cargar_modelo).pack(fill=tk.X, pady=5)
+                command=self._cargar_modelo).pack(fill=tk.X, pady=5)
         
         self.modelo_status_var = tk.StringVar(value="Sin modelo")
         ttk.Label(panel_controles, textvariable=self.modelo_status_var).pack(anchor=tk.W, pady=5)
@@ -128,7 +128,7 @@ class SistemaPLCYOLO:
         
         # <<< CAMBIO: Botón y comando actualizados >>>
         ttk.Button(panel_controles, text="📁 Cargar Video", 
-                  command=self._cargar_video).pack(fill=tk.X, pady=5)
+                command=self._cargar_video).pack(fill=tk.X, pady=5)
         
         self.camara_status_var = tk.StringVar(value="Sin video") # <<< CAMBIO: Texto actualizado >>>
         ttk.Label(panel_controles, textvariable=self.camara_status_var).pack(anchor=tk.W, pady=5)
@@ -140,16 +140,16 @@ class SistemaPLCYOLO:
         
         self.chk_simulacion_var = tk.BooleanVar(value=self.modo_simulacion) # <<< CAMBIO: Variable separada >>>
         self.chk_simulacion = ttk.Checkbutton(panel_controles, text="Modo Simulación (sin PLC)", 
-                                             variable=self.chk_simulacion_var,
-                                             command=self._toggle_simulacion)
+                                            variable=self.chk_simulacion_var,
+                                            command=self._toggle_simulacion)
         self.chk_simulacion.pack(anchor=tk.W, pady=5)
         
         self.btn_iniciar = ttk.Button(panel_controles, text="▶️ INICIAR SISTEMA", 
-                                     command=self._iniciar_sistema, state=tk.DISABLED)
+                                    command=self._iniciar_sistema, state=tk.DISABLED)
         self.btn_iniciar.pack(fill=tk.X, pady=10)
         
         self.btn_detener = ttk.Button(panel_controles, text="⏹️ DETENER", 
-                                     command=self._detener_sistema, state=tk.DISABLED)
+                                    command=self._detener_sistema, state=tk.DISABLED)
         self.btn_detener.pack(fill=tk.X, pady=5)
         
         # ==================== PANEL CENTRAL (Video) ====================
@@ -164,7 +164,7 @@ class SistemaPLCYOLO:
         panel_resultados.pack(side=tk.RIGHT, fill=tk.Y, padx=10, pady=10)
         
         self.text_resultados = tk.Text(panel_resultados, width=40, height=30, 
-                                       font=('Consolas', 9))
+                                    font=('Consolas', 9))
         self.text_resultados.pack(fill=tk.BOTH, expand=True, side=tk.LEFT) # <<< CAMBIO: Lado izquierdo >>>
         
         scrollbar = ttk.Scrollbar(panel_resultados, command=self.text_resultados.yview)

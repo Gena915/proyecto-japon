@@ -3,9 +3,10 @@
     "ip_plc": "192.168.100.120",
     "puerto_plc": 5007,
     "protocolo": "Mitsubishi-MC-3E",
-    "dispositivo_trigger": "D28",
-    "dispositivo_valor": "D29",
-    "dispositivo_filas": "D14",
+    "dispositivo_trigger": "D701",   
+    "dispositivo_valor": "D710",    
+    "dispositivo_filas": "D714",
+    "dispositivo_valor_z": "D712",   
     "valor_solicitud": 99,
     "valor_exito": 88,
     "valor_error": 77
@@ -17,8 +18,8 @@
     "delay_simulacion_ms": 500
   },
   "vision": {
-    "confianza_sup": 0.45,
-    "confianza_lat": 0.05,
+    "confianza_sup": 0.20,
+    "confianza_lat": 0.50,
     
     "mm_per_pixel": 0.5,
 

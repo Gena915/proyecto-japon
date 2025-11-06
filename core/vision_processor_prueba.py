@@ -41,7 +41,7 @@ class VisionProcessor:
         self.conf_lat = self.config_vision.get('confianza_lat', 0.05)
         self.mm_per_pixel = self.config_vision.get('mm_per_pixel', 0.5) # Para conversión Y
 
-        # Superior (Y, Conteo, QC)
+        # Superior (Posicion Y(abanico), Conteo Filas (para saber a donde tiene q buscar la siguiente columna el brazo1), QC)
         self.CLASES_FALLO_SUPERIOR = self.config_vision.get('CLASES_FALLO_SUPERIOR', ['error_apilado', 'error_alerta'])
         self.CLASE_POSICION = self.config_vision.get('CLASE_POSICION', 'posicion_columna')
         self.CLASE_VACIO = self.config_vision.get('CLASE_VACIO', 'posicion_vacia')
@@ -321,44 +321,41 @@ class VisionProcessor:
         # ya que el PLC debe recibir el código 1 para actuar (ej. rechazar))
         plc_success = (resp_lat_code != self.CODIGO_PARADA)
         
-        # 'desviacion_y_mm' (para D29) viene de la corrección Y
-        desviacion_y_mm = correccion_y_px * self.mm_per_pixel
+        # 'desviacion_y_mm' (para D710) viene de la corrección Y
+        desviacion_y_mm_final = correccion_y_px * self.mm_per_pixel
         
-        # 'filas' (para D14) viene del conteo
+        # 'filas' (para D714) viene del conteo
         filas = conteo
+        
+        # 'correccion_z_mm_final' (para D712) viene de la corrección Z (convertida a MM)
+        # correccion_z está en cMM, lo dividimos por 100 para obtener MM.
+        correccion_z_mm_final = correccion_z / 100.0 
         
         # Determinar el código de respuesta general para el log
         # Prioridad: PARADA > FALLO_QC > OK
         if resp_lat_code == self.CODIGO_PARADA:
-            codigo_respuesta_plc = self.CODIGO_PARADA
+            codigo_respuesta_plc = self.CODIGO_PARADA # 2
         elif resp_sup_code == self.CODIGO_FALLO_QC:
-            codigo_respuesta_plc = self.CODIGO_FALLO_QC
+            codigo_respuesta_plc = self.CODIGO_FALLO_QC # 1
         else:
-            codigo_respuesta_plc = self.CODIGO_OK
+            codigo_respuesta_plc = self.CODIGO_OK # 0
             
         # *** LÓGICA DE MAPEO IMPORTANTE ***
-        # Tu main.py envía 'desviacion_y_mm' y 'filas' al PLC.
-        # ¿El PLC realmente espera la desviación Y en D29?
-        # El script 'prueba_control' sugiere que la corrección Z (en cMM) 
-        # podría ser el valor de desviación.
-        
-        # VAMOS A ASUMIR LA LÓGICA DE 'prueba_control':
-        # D29 (desviacion_mm) = Corrección Z
-        # D14 (filas) = Conteo Superior
-        
-        # <<< RE-MAPEAMOS LA SALIDA >>>
-        desviacion_para_plc = correccion_z / 100.0 # Convertir cMM a MM
+        # Se eliminó la lógica confusa y obsoleta de 'prueba_control' para asegurar 
+        # que 'desviacion_y_mm_final' (Corrección Y) y 'correccion_z_mm_final' (Corrección Z)
+        # se pasen correctamente a main.py para su escritura en D710 y D712 respectivamente.
         
         return {
-            'plc_success': plc_success,       # bool: Para D28 (88 u 77)
-            'filas': filas,                 # int: Para D14
-            'desviacion_y_mm': desviacion_para_plc, # <<< ¡ESTO AHORA ES LA CORRECCIÓN Z! >>>
+            'plc_success': plc_success, # bool: Para D701 (88 u 77)
+            'filas': filas, # int: Para D714
+            'desviacion_y_mm': desviacion_y_mm_final, # float: Corrección Y (Horizontal) para D710
+            'correccion_z_mm_final': correccion_z_mm_final, # float: Corrección Z (Profundidad) para D712
             
             # --- Datos extra para logs y UI ---
             'correccion_z_cmm': correccion_z,
-            'desviacion_y_px': correccion_y_px, # Desviación Y original en píxeles
+            'desviacion_y_px': correccion_y_px, 
             'codigo_respuesta_plc': codigo_respuesta_plc, 
-            'annotated_sup': annotated_sup,   
+            'annotated_sup': annotated_sup, 
             'annotated_lat': annotated_lat,
             'log_z': log_z,
         }
@@ -373,17 +370,17 @@ class VisionProcessor:
             # Los fallos ya están controlados (Parada)
             return True, [f"Fallo reportado (Código: {resultado['codigo_respuesta_plc']})"]
         
-        # Validar desviación Z (la que se envía al PLC)
-        desv_z = abs(resultado['desviacion_y_mm']) # Recordar que esto ahora es Z
+        # Validar corrección Z (la que se envía al PLC)
+        desv_z = abs(resultado['correccion_z_mm_final']) # Recordar que esto ahora es Z
         if desv_z > self.config_vision.get('max_correccion_z_mm_valida', 50.0): # 50mm
             advertencias.append(
-                f"⚠️ Corrección Z muy grande: {resultado['desviacion_y_mm']:.2f}mm"
+                f"⚠️ Corrección Z muy grande: {resultado['correccion_z_mm_final']:.2f}mm"
             )
         
-        # Validar desviación Y (la que no se envía)
-        desv_y = abs(resultado['desviacion_y_px'])
-        if desv_y > (self.CORRECCION_Y_FIJA_PX + 1): # Si es mayor al límite
-             advertencias.append(
+        # Validar desviación Y (la que se envía al PLC)
+        desv_y_px = abs(resultado['desviacion_y_px']) # Ya está en el resultado
+        if desv_y_px > (self.CORRECCION_Y_FIJA_PX + 1): # Si es mayor al límite
+            advertencias.append(
                 f"⚠️ Desviación Y fuera de rango: {resultado['desviacion_y_px']} px"
             )
 

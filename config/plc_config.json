@@ -7,8 +7,9 @@
     },
     "direcciones": {
         "dispositivo_trigger": "D28",
-        "dispositivo_valor": "D29",
-        "dispositivo_filas": "D14"
+        "dispositivo_valor": "D29",      
+        "dispositivo_filas": "D14",
+        "dispositivo_valor_z": "D31"
     },
     "codigos_estado": {
         "valor_solicitud": 99,

@@ -15,7 +15,6 @@ from pathlib import Path
 # <<< Asumiendo que tus archivos están en estas carpetas >>>
 from core.plc_controller import PLCController
 from core.vision_processor_prueba import VisionProcessor
-# <<< CAMBIO: Importar desde logger_prueba >>>
 from utils.logger_prueba import setup_logger, log_resultado_procesamiento, log_estado_plc
 
 
@@ -28,11 +27,9 @@ class SistemaPLCYOLO:
     - Comunicación PLC
     """
     
-    # <<< CORRECCIÓN: __init__ con doble guion bajo >>>
     def __init__(self, root):
         self.root = root
         self.root.title("Sistema PLC-YOLO (Dual Cam) - Control de Tubos")
-        # <<< CAMBIO: Tamaño aumentado para dos videos >>>
         self.root.geometry("1600x900") 
         
         # Logger
@@ -48,31 +45,30 @@ class SistemaPLCYOLO:
         
         # Componentes del sistema
         self.controlador_plc = None
-        self.vision_processor = None # Se inicializará al 'Iniciar'
+        self.vision_processor = None 
         
         # Estado del sistema
         self.modo_realtime_activo = False
         self.modo_simulacion = self.config.get('sistema', {}).get('modo_simulacion', True)
         
-        # <<< CAMBIO: Dos capturas de video >>>
+        # Dos capturas de video
         self.video_cap_sup = None
         self.video_cap_lat = None
         self.frame_actual_sup = None
         self.frame_actual_lat = None
         
-        # <<< CAMBIO: Dos rutas de modelo >>>
+        # Dos rutas de modelo
         self.modelo_path_sup = None
         self.modelo_path_lat = None
         
         # UI
-        self._crear_interfaz() # <<< Esta función AHORA SÍ existe >>>
+        self._crear_interfaz() 
         self._actualizar_estado_ui()
         
         self.logger.info("✅ Sistema inicializado correctamente")
     
     def _cargar_configuracion(self):
         """Carga configuración desde JSON"""
-        # <<< CAMBIO: Usa el nombre de config correcto >>>
         config_path = 'config/plc_config_prueba.json'
         try:
             with open(config_path, 'r') as f:
@@ -96,7 +92,6 @@ class SistemaPLCYOLO:
             self.root.destroy()
             return {}
     
-    # <<< FUNCIÓN _crear_interfaz AÑADIDA >>>
     def _crear_interfaz(self):
         """Crea la interfaz gráfica"""
         
@@ -105,11 +100,11 @@ class SistemaPLCYOLO:
         panel_superior.pack(side=tk.TOP, fill=tk.X, padx=10, pady=10)
         
         ttk.Label(panel_superior, text="Sistema PLC-YOLO (Dual Cam)", 
-                 font=('Arial', 16, 'bold')).pack(side=tk.LEFT)
+                  font=('Arial', 16, 'bold')).pack(side=tk.LEFT)
         
         self.status_var = tk.StringVar(value="Sistema detenido")
         ttk.Label(panel_superior, textvariable=self.status_var, 
-                 font=('Arial', 10)).pack(side=tk.RIGHT)
+                  font=('Arial', 10)).pack(side=tk.RIGHT)
         
         # ==================== PANEL IZQUIERDO (Controles) ====================
         panel_controles = ttk.LabelFrame(self.root, text="Controles", padding=10)
@@ -118,27 +113,27 @@ class SistemaPLCYOLO:
         # --- Sección: PLC ---
         ttk.Label(panel_controles, text="PLC", font=('Arial', 12, 'bold')).pack(anchor=tk.W)
         self.btn_conectar_plc = ttk.Button(panel_controles, text="🔌 Conectar PLC", 
-                                          command=self._conectar_plc)
+                                           command=self._conectar_plc)
         self.btn_conectar_plc.pack(fill=tk.X, pady=5)
         self.btn_desconectar_plc = ttk.Button(panel_controles, text="Desconectar PLC", 
-                                             command=self._desconectar_plc, state=tk.DISABLED)
+                                              command=self._desconectar_plc, state=tk.DISABLED)
         self.btn_desconectar_plc.pack(fill=tk.X, pady=5)
         self.plc_status_var = tk.StringVar(value="Desconectado")
-        ttk.Label(panel_controles, textvariable=self.plc_status_var, 
-                 foreground='red').pack(anchor=tk.W, pady=5)
+        self.plc_status_label = ttk.Label(panel_controles, textvariable=self.plc_status_var, 
+                                          foreground='red')
+        self.plc_status_label.pack(anchor=tk.W, pady=5)
         ttk.Separator(panel_controles, orient=tk.HORIZONTAL).pack(fill=tk.X, pady=10)
         
         # --- Sección: Modelo YOLO ---
         ttk.Label(panel_controles, text="Modelos YOLO", font=('Arial', 12, 'bold')).pack(anchor=tk.W)
         
-        # <<< CAMBIO: Botones para DOS modelos >>>
-        ttk.Button(panel_controles, text="📁 Cargar Modelo Superior (.pt)", 
-                  command=self._cargar_modelo_sup).pack(fill=tk.X, pady=5)
+        ttk.Button(panel_controles, text="📁 Cargar Modelo Camara Superior (.pt)", 
+                   command=self._cargar_modelo_sup).pack(fill=tk.X, pady=5)
         self.modelo_sup_status_var = tk.StringVar(value="Sin modelo Sup.")
         ttk.Label(panel_controles, textvariable=self.modelo_sup_status_var).pack(anchor=tk.W, pady=2)
         
-        ttk.Button(panel_controles, text="📁 Cargar Modelo Lateral (.pt)", 
-                  command=self._cargar_modelo_lat).pack(fill=tk.X, pady=5)
+        ttk.Button(panel_controles, text="📁 Cargar Modelo Camara Lateral (.pt)", 
+                   command=self._cargar_modelo_lat).pack(fill=tk.X, pady=5)
         self.modelo_lat_status_var = tk.StringVar(value="Sin modelo Lat.")
         ttk.Label(panel_controles, textvariable=self.modelo_lat_status_var).pack(anchor=tk.W, pady=2)
         
@@ -147,14 +142,13 @@ class SistemaPLCYOLO:
         # --- Sección: Cámara ---
         ttk.Label(panel_controles, text="Fuentes de Video", font=('Arial', 12, 'bold')).pack(anchor=tk.W)
         
-        # <<< CAMBIO: Botones para DOS videos >>>
-        ttk.Button(panel_controles, text="📁 Cargar Video Superior", 
-                  command=self._cargar_video_sup).pack(fill=tk.X, pady=5)
+        ttk.Button(panel_controles, text="📁 Cargar Video Camara Superior", 
+                   command=self._cargar_video_sup).pack(fill=tk.X, pady=5)
         self.camara_sup_status_var = tk.StringVar(value="Sin video Sup.")
         ttk.Label(panel_controles, textvariable=self.camara_sup_status_var).pack(anchor=tk.W, pady=2)
         
-        ttk.Button(panel_controles, text="📁 Cargar Video Lateral", 
-                  command=self._cargar_video_lat).pack(fill=tk.X, pady=5)
+        ttk.Button(panel_controles, text="📁 Cargar Video Camara Lateral", 
+                   command=self._cargar_video_lat).pack(fill=tk.X, pady=5)
         self.camara_lat_status_var = tk.StringVar(value="Sin video Lat.")
         ttk.Label(panel_controles, textvariable=self.camara_lat_status_var).pack(anchor=tk.W, pady=2)
 
@@ -164,27 +158,26 @@ class SistemaPLCYOLO:
         ttk.Label(panel_controles, text="Sistema", font=('Arial', 12, 'bold')).pack(anchor=tk.W)
         self.chk_simulacion_var = tk.BooleanVar(value=self.modo_simulacion)
         self.chk_simulacion = ttk.Checkbutton(panel_controles, text="Modo Simulación (sin PLC)", 
-                                             variable=self.chk_simulacion_var,
-                                             command=self._toggle_simulacion)
+                                              variable=self.chk_simulacion_var,
+                                              command=self._toggle_simulacion)
         self.chk_simulacion.pack(anchor=tk.W, pady=5)
         self.btn_iniciar = ttk.Button(panel_controles, text="▶️ INICIAR SISTEMA", 
-                                     command=self._iniciar_sistema, state=tk.DISABLED)
+                                      command=self._iniciar_sistema, state=tk.DISABLED)
         self.btn_iniciar.pack(fill=tk.X, pady=10)
         self.btn_detener = ttk.Button(panel_controles, text="⏹️ DETENER", 
-                                     command=self._detener_sistema, state=tk.DISABLED)
+                                      command=self._detener_sistema, state=tk.DISABLED)
         self.btn_detener.pack(fill=tk.X, pady=5)
         
         # ==================== PANEL CENTRAL (Videos) ====================
         panel_videos = ttk.Frame(self.root)
         panel_videos.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=10, pady=10)
         
-        # <<< CAMBIO: Dos canvas de video >>>
-        panel_video_sup = ttk.LabelFrame(panel_videos, text="Vista Superior (Y, Conteo, QC)", padding=5)
+        panel_video_sup = ttk.LabelFrame(panel_videos, text="Vista Superior (Posición Y, Conteo Filas, QC)", padding=5)
         panel_video_sup.pack(fill=tk.BOTH, expand=True, side=tk.TOP, pady=(0,5))
         self.canvas_video_sup = tk.Canvas(panel_video_sup, bg='black')
         self.canvas_video_sup.pack(fill=tk.BOTH, expand=True)
 
-        panel_video_lat = ttk.LabelFrame(panel_videos, text="Vista Lateral (Z, Seguridad)", padding=5)
+        panel_video_lat = ttk.LabelFrame(panel_videos, text="Vista Lateral (Corrección Z, Seguridad)", padding=5)
         panel_video_lat.pack(fill=tk.BOTH, expand=True, side=tk.BOTTOM, pady=(5,0))
         self.canvas_video_lat = tk.Canvas(panel_video_lat, bg='black')
         self.canvas_video_lat.pack(fill=tk.BOTH, expand=True)
@@ -204,17 +197,19 @@ class SistemaPLCYOLO:
     def _conectar_plc(self):
         """Conecta al PLC"""
         try:
-            self.controlador_plc = PLCController(self.config, self.logger) 
+            # CORRECCIÓN: Instanciar sin pasar self.config ni self.logger
+            # (El PLCController maneja su propia configuración y logs)
+            self.controlador_plc = PLCController() 
             if self.controlador_plc.conectar():
+                self.plc_status_label.config(foreground='green')
                 self.plc_status_var.set("✅ Conectado")
-                self.plc_status_var.config(foreground='green')
                 self.btn_conectar_plc.config(state=tk.DISABLED)
                 self.btn_desconectar_plc.config(state=tk.NORMAL)
                 self._actualizar_estado_ui()
                 self.logger.info("✅ PLC conectado exitosamente")
             else:
+                self.plc_status_label.config(foreground='red')
                 self.plc_status_var.set("❌ Error Conexión")
-                self.plc_status_var.config(foreground='red')
                 messagebox.showerror("Error PLC", "No se pudo conectar al PLC. Revisa IP/Puerto y conexión.")
         except Exception as e:
             messagebox.showerror("Error", f"Error al instanciar PLC: {e}")
@@ -225,7 +220,7 @@ class SistemaPLCYOLO:
         if self.controlador_plc:
             self.controlador_plc.desconectar()
         self.plc_status_var.set("Desconectado")
-        self.plc_status_var.config(foreground='red')
+        self.plc_status_label.config(foreground='red')
         self.btn_conectar_plc.config(state=tk.NORMAL)
         self.btn_desconectar_plc.config(state=tk.DISABLED)
         self._actualizar_estado_ui()
@@ -379,109 +374,123 @@ class SistemaPLCYOLO:
             self.btn_conectar_plc.config(state=tk.NORMAL)
         self.chk_simulacion.config(state=tk.NORMAL)
     
-    def _loop_principal(self):
+    def _loop_principal(self, delay_inicial=100):
         """
-        Loop principal del sistema - Implementa el handshake PLC
-        *** VERSIÓN DUAL CAM ***
+        Loop principal del sistema. Se reagenda siempre al final.
+        Solo lee frames y procesa si 'self.modo_realtime_activo' es True.
         """
-        if not self.modo_realtime_activo:
-            self.logger.info("Loop detenido por bandera 'modo_realtime_activo'")
-            return
-        
-        delay_siguiente = self.config.get('sistema', {}).get('delay_lectura_plc_ms', 100)
-        
-        try:
-            # 1. Capturar frames
-            ret_sup, frame_sup = self.video_cap_sup.read()
-            ret_lat, frame_lat = self.video_cap_lat.read()
+        delay_siguiente = delay_inicial # Delay por defecto para monitoreo o inactividad
 
-            # Manejar fin de video (reiniciar)
-            if not ret_sup:
-                self.logger.info("Video Superior finalizado, reiniciando...")
-                self.video_cap_sup.set(cv2.CAP_PROP_POS_FRAMES, 0)
+        try:
+            # --- CÓDIGO ACTIVO (Lectura y Procesamiento) ---
+            if self.modo_realtime_activo:
+                
+                # 1. Capturar frames (SOLO SE EJECUTA SI EL SISTEMA ESTÁ ACTIVO)
                 ret_sup, frame_sup = self.video_cap_sup.read()
-            if not ret_lat:
-                self.logger.info("Video Lateral finalizado, reiniciando...")
-                self.video_cap_lat.set(cv2.CAP_PROP_POS_FRAMES, 0)
                 ret_lat, frame_lat = self.video_cap_lat.read()
 
-            if not ret_sup or not ret_lat:
-                self.logger.error("Error en loop: No se pueden leer frames de los videos.")
-                self._detener_sistema()
-                messagebox.showerror("Error", "Se perdieron las fuentes de video.")
-                return
-
-            self.frame_actual_sup = frame_sup.copy()
-            self.frame_actual_lat = frame_lat.copy()
-
-            # Mostrar frames *originales*
-            self._mostrar_frame(self.frame_actual_sup, self.canvas_video_sup)
-            self._mostrar_frame(self.frame_actual_lat, self.canvas_video_lat)
-
-            # 2. Consultar PLC (o simular)
-            procesar = False
-            if self.modo_simulacion:
-                procesar = True
-                delay_siguiente = self.config.get('sistema', {}).get('delay_simulacion_ms', 500)
-            elif self.controlador_plc and self.controlador_plc.is_connected:
-                procesar = self.controlador_plc.leer_solicitud_inspeccion()
-                log_estado_plc(self.controlador_plc, self.logger, procesar)
-            
-            # 3. Procesar si hay solicitud
-            if procesar:
-                self.status_var.set("🔄 Procesando solicitud...")
-                self.root.update()
-                
-                if not self.vision_processor:
-                    self.logger.error("Error crítico: VisionProcessor no inicializado.")
-                    self._detener_sistema()
-                    return
-
-                resultado = self.vision_processor.procesar_frames_dual(
-                    self.frame_actual_sup,
-                    self.frame_actual_lat
-                )
-                
-                valido, advertencias = self.vision_processor.validar_resultado(resultado)
-                if advertencias:
-                    for adv in advertencias:
-                        self.logger.warning(adv)
-                
-                log_resultado_procesamiento(resultado, self.logger)
-                
-                # Mostrar en UI (Frames anotados y logs)
-                self._mostrar_frame(resultado['annotated_sup'], self.canvas_video_sup)
-                self._mostrar_frame(resultado['annotated_lat'], self.canvas_video_lat)
-                self._mostrar_resultado(resultado)
-                
-                # Enviar a PLC
-                if not self.modo_simulacion and self.controlador_plc:
-                    exito_plc = resultado['plc_success']
+                # Manejar fin de video
+                if not ret_sup or not ret_lat:
+                    self.logger.info("🎬 Fin de simulación: Uno o ambos videos terminaron o fallaron la lectura.")
+                    self._detener_sistema() # Esto pone modo_realtime_activo=False
                     
-                    exito_escritura = self.controlador_plc.escribir_resultados(
-                        resultado['desviacion_y_mm'], # Desviación Z
-                        resultado['filas'],           # Conteo de filas
-                        exito_plc
+                    # ... (código del messagebox) ...
+                    if not ret_sup and not ret_lat:
+                        msg = "Ambos videos terminaron."
+                    elif not ret_sup:
+                        msg = "Video Superior terminó/falló."
+                    else:
+                        msg = "Video Lateral terminó/falló."
+                    messagebox.showinfo("Fin de Simulación", f"{msg} Deteniendo sistema.")
+                    
+                    # Salir de la parte activa. El re-agendamiento ocurrirá al final.
+                    return 
+                    
+                self.frame_actual_sup = frame_sup.copy()
+                self.frame_actual_lat = frame_lat.copy()
+
+                # Mostrar frames *originales*
+                self._mostrar_frame(self.frame_actual_sup, self.canvas_video_sup)
+                self._mostrar_frame(self.frame_actual_lat, self.canvas_video_lat)
+
+                # 2. Consultar PLC (o simular)
+                procesar = False
+                if self.modo_simulacion:
+                    procesar = True
+                    # Usar el delay largo de simulación
+                    delay_siguiente = self.config.get('sistema', {}).get('delay_simulacion_ms', 500)
+                elif self.controlador_plc and self.controlador_plc.is_connected:
+                    procesar = self.controlador_plc.leer_solicitud_inspeccion()
+                    log_estado_plc(self.controlador_plc, self.logger, procesar)
+                    # Usar el delay rápido de lectura de PLC
+                    delay_siguiente = self.config.get('sistema', {}).get('delay_lectura_plc_ms', 100)
+                
+                # 3. Procesar si hay solicitud
+                if procesar:
+                    self.status_var.set("🔄 Procesando solicitud...")
+                    self.root.update()
+                    
+                    if not self.vision_processor:
+                         self.logger.error("Error crítico: VisionProcessor no inicializado.")
+                         self._detener_sistema()
+                         return
+
+                    resultado = self.vision_processor.procesar_frames_dual(
+                        self.frame_actual_sup,
+                        self.frame_actual_lat
                     )
                     
-                    if not exito_escritura:
-                        self.logger.error("❌ FALLO AL ESCRIBIR EN PLC")
-                        self.plc_status_var.set("❌ Error Escritura")
-                        self.plc_status_var.config(foreground='red')
-                
-                delay_siguiente = self.config.get('sistema', {}).get('delay_post_proceso_ms', 500)
-            else:
-                if not self.modo_simulacion:
-                    self.status_var.set("🟢 Monitoreando PLC (esperando D28=99)")
+                    # *** LÓGICA DE DETENCIÓN POR ERROR DE VISIÓN (PARADA CRÍTICA) ***
+                    if resultado['codigo_respuesta_plc'] == self.vision_processor.CODIGO_PARADA: # Asumiendo que CODIGO_PARADA = 2
+                        self.logger.error("🚨 PARADA CRÍTICA DETECTADA POR VISION. Deteniendo sistema.")
+                        self._detener_sistema() 
+                        messagebox.showwarning("Parada de Emergencia", "Parada crítica detectada. Sistema detenido.")
+                        # No es necesario el `return` aquí, el próximo ciclo lo gestionará, 
+                        # pero actualizaremos el delay para no spamear.
+                        delay_siguiente = 5000 
+                    
+                    # ... (el resto del código de procesamiento) ...
+                    
+                    valido, advertencias = self.vision_processor.validar_resultado(resultado)
+                    if advertencias:
+                        for adv in advertencias:
+                            self.logger.warning(adv)
+                    
+                    log_resultado_procesamiento(resultado, self.logger)
+                    
+                    # Mostrar en UI (Frames anotados y logs)
+                    self._mostrar_frame(resultado['annotated_sup'], self.canvas_video_sup)
+                    self._mostrar_frame(resultado['annotated_lat'], self.canvas_video_lat)
+                    self._mostrar_resultado(resultado)
+                    
+                    # Enviar a PLC
+                    if not self.modo_simulacion and self.controlador_plc:
+                        codigo_respuesta_final = resultado['codigo_respuesta_plc']
+                        exito_escritura = self.controlador_plc.escribir_resultados(
+                            desviacion_y_mm=resultado['desviacion_y_mm'], 
+                            num_filas=resultado['filas'], 
+                            correccion_z_mm=resultado['correccion_z_mm_final'],
+                            codigo_respuesta=codigo_respuesta_final
+                        )
+                        
+                        if not exito_escritura:
+                            self.logger.error("❌ FALLO AL ESCRIBIR EN PLC")
+                            self.plc_status_var.set("❌ Error Escritura")
+                            self.plc_status_label.config(foreground='red')
+                    
+                    # Usar delay largo después de un proceso exitoso
+                    if self.modo_simulacion or resultado['codigo_respuesta_plc'] != self.vision_processor.CODIGO_PARADA:
+                        delay_siguiente = self.config.get('sistema', {}).get('delay_post_proceso_ms', 500)
             
-            # 4. Siguiente iteración
+            # 4. Siguiente iteración (SIEMPRE se re-agendará)
             self.root.after(delay_siguiente, self._loop_principal)
-            
+                
         except Exception as e:
             self.logger.error(f"❌ Error fatal en loop principal: {e}", exc_info=True)
             self._detener_sistema()
             messagebox.showerror("Error de Ejecución", f"Error fatal en el sistema: {e}")
-    
+            # No re-agendamos aquí, pues la aplicación puede estar inestable.
+        
     def _mostrar_frame(self, frame, canvas):
         """Muestra frame en un canvas específico, redimensionando"""
         try:
@@ -510,6 +519,7 @@ class SistemaPLCYOLO:
             
             canvas.create_image(x_offset, y_offset, anchor=tk.NW, image=imagen_tk)
             
+            # Mantener referencia para evitar que sea eliminado por el recolector de basura (garbage collector)
             if canvas == self.canvas_video_sup:
                 self.canvas_video_sup.image = imagen_tk
             else:
@@ -527,22 +537,31 @@ class SistemaPLCYOLO:
         texto += f"[{timestamp}] RESULTADO PROCESAMIENTO DUAL\n"
         texto += f"{'='*45}\n"
         
-        codigo_plc = resultado['codigo_respuesta_plc']
-        if codigo_plc == 2: # PARADA
-            texto += f"🛑 DIAGNÓSTICO: PARADA CRÍTICA (Lateral)\n"
-        elif codigo_plc == 1: # FALLO QC
-            texto += f"⚠️ DIAGNÓSTICO: FALLO QC / Corrección Y\n"
+        codigo_plc = resultado.get('codigo_respuesta_plc', 77) # Usar .get() también aquí
+        
+        if self.controlador_plc and hasattr(self.controlador_plc, 'VAL_ERROR'):
+            val_error = self.controlador_plc.VAL_ERROR
+            val_exito = self.controlador_plc.VAL_EXITO
         else:
-            texto += f"✅ DIAGNÓSTICO: OK\n"
+            val_error = 77 
+            val_exito = 88
+        
+        if codigo_plc == val_error: 
+            texto += f"🛑 DIAGNÓSTICO: FALLO CRÍTICO / ERROR\n"
+        elif codigo_plc == val_exito: 
+            texto += f"✅ DIAGNÓSTICO: ÉXITO / OK\n"
+        else:
+            texto += f"⚠️ DIAGNÓSTICO: CODIGO DESCONOCIDO ({codigo_plc})\n"
             
         texto += f"--- SUPERIOR (QC, Y, Conteo) ---\n"
-        texto += f"  • Filas Restantes: {resultado['filas']}\n"
-        texto += f"  • Desviación Y: {resultado['desviacion_y_px']} px\n" # Mostrar en Píxeles
+        texto += f"  • Filas Restantes: {resultado.get('filas', 0)}\n"
+        texto += f"  • Desviación Y (px): {resultado.get('desviacion_y_px', 0)} px\n"
         
-        texto += f"\n--- LATERAL (Z, Seguridad) ---\n"
-        texto += f"  • Corrección Z: {resultado['correccion_z_cmm']} cMM\n"
-        texto += f"  • Desviación (a PLC): {resultado['desviacion_y_mm']:.2f} mm\n" # Mostrar Z en mm
-        texto += f"  • Log Z: {resultado['log_z']}\n"
+        texto += f"\n--- DATOS ENVIADOS A PLC ---\n"
+        # 📌 CORRECCIÓN CLAVE: Usar .get() para evitar KeyError si falta la clave.
+        texto += f"  • Desviación Y (D710): {resultado.get('desviacion_y_mm', 0.00):.2f} mm\n"
+        texto += f"  • Corrección Z (D712): {resultado.get('correccion_z_mm_final', 0.00):.2f} mm\n" 
+        texto += f"  • Log Z: {resultado.get('log_z', 'N/A')}\n"
 
         self.text_resultados.insert(tk.END, texto)
         self.text_resultados.see(tk.END)
@@ -569,7 +588,6 @@ class SistemaPLCYOLO:
 # =============================================================================
 # PUNTO DE ENTRADA
 # =============================================================================
-# <<< CORRECCIÓN: __name__ con doble guion bajo >>>
 if __name__ == "__main__":
     
     root = tk.Tk()

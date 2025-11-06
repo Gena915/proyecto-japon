@@ -31,20 +31,21 @@ class PLCController:
         self.is_connected = False
         
         # Extraer configuraciones
-        conn = self.config['conexion']
-        dirs = self.config['direcciones']
-        codigos = self.config['codigos_estado']
+        conn = self.config.get('conexion', {})
+        dirs = self.config.get('direcciones', {})
+        codigos = self.config.get('codigos_estado', {})
         
-        self.ip_plc = conn['ip_plc']
-        self.puerto_plc = conn['puerto_plc']
+        self.ip_plc = conn.get('ip_plc', '127.0.0.1')
+        self.puerto_plc = conn.get('puerto_plc', 5007)
         
-        self.DEV_TRIGGER = dirs['dispositivo_trigger']
-        self.DEV_RESULTADO_VALOR = dirs['dispositivo_valor']
-        self.DEV_RESULTADO_FILAS = dirs['dispositivo_filas']
+        self.DEV_TRIGGER = dirs.get('dispositivo_trigger', 'D701')  # <--- MODIFICADO (D28 -> D701)
+        self.DEV_RESULTADO_VALOR = dirs.get('dispositivo_valor', 'D710')  # <--- MODIFICADO (D29 -> D710)
+        self.DEV_RESULTADO_FILAS = dirs.get('dispositivo_filas', 'D714')  # <--- MODIFICADO (D14 -> D714)
+        self.DEV_RESULTADO_VALOR_Z = dirs.get('dispositivo_valor_z', 'D712')  # <--- MODIFICADO (D31 -> D712)
         
-        self.VAL_SOLICITUD = codigos['valor_solicitud']
-        self.VAL_EXITO = codigos['valor_exito']
-        self.VAL_ERROR = codigos['valor_error']
+        self.VAL_SOLICITUD = codigos.get('valor_solicitud', 99)
+        self.VAL_EXITO = codigos.get('valor_exito', 88)
+        self.VAL_ERROR = codigos.get('valor_error', 77)
     
     def _cargar_configuracion(self, config_file: str) -> Dict:
         """Carga configuración desde archivo JSON"""
@@ -68,9 +69,10 @@ class PLCController:
                 "puerto_plc": 5007
             },
             "direcciones": {
-                "dispositivo_trigger": "D28",
-                "dispositivo_valor": "D29",
-                "dispositivo_filas": "D14"
+                "dispositivo_trigger": "D701",  # <--- MODIFICADO
+                "dispositivo_valor": "D710",    # Desviación Y (32 bits, D710, D711) - MODIFICADO
+                "dispositivo_filas": "D714",    # Número de Filas (16 bits) - MODIFICADO
+                "dispositivo_valor_z": "D712"   # Corrección Z (32 bits, D712, D713) - MODIFICADO
             },
             "codigos_estado": {
                 "valor_solicitud": 99,
@@ -116,7 +118,6 @@ class PLCController:
         
         Protocolo:
         - D28 = 99: PLC solicita inspección
-        - Otros valores: No hay solicitud
         
         Returns:
             True si D28 == 99, False en caso contrario
@@ -141,21 +142,24 @@ class PLCController:
             return False
     
     def escribir_resultados(self, 
-                          desviacion_mm: float, 
-                          num_filas: int, 
-                          exito: bool) -> bool:
+                            desviacion_y_mm: float, 
+                            num_filas: int, 
+                            correccion_z_mm: float, 
+                            codigo_respuesta: int) -> bool:
         """
-        Escribe los resultados de la inspección al PLC.
+        Escribe los resultados de la inspección al PLC (Dual Cam).
         
         Protocolo de escritura (orden crítico):
-        1. D29 (desviación en 1/100 mm, 32 bits)
-        2. D14 (número de filas, 16 bits)
-        3. D28 (estado: 88=éxito, 77=error)
+        1. D29 (desviación Y en 1/100 mm, 32 bits)
+        2. D31 (corrección Z en 1/100 mm, 32 bits)
+        3. D14 (número de filas, 16 bits)
+        4. D28 (estado: 88=éxito, 77=error/parada)
         
         Args:
-            desviacion_mm: Desviación en milímetros (float)
+            desviacion_y_mm: Desviación en Y (Horizontal) en milímetros (float)
             num_filas: Número de filas detectadas (int)
-            exito: True si la detección fue exitosa
+            correccion_z_mm: Corrección en Z (Profundidad) en milímetros (float)
+            codigo_respuesta: Código final a enviar (88 para OK, 77 para ERROR/Parada)
             
         Returns:
             True si la escritura fue exitosa
@@ -165,48 +169,46 @@ class PLCController:
             return False
         
         try:
-            if exito:
-                # Convertir desviación a formato PLC (1/100 mm)
-                valor_desviacion = int(round(desviacion_mm * 100.0))
-                palabras_valor = self._int32_to_words(valor_desviacion)
-                
-                # Validar número de filas
-                valor_filas = max(0, int(num_filas))
-                
-                # ORDEN CRÍTICO: Datos primero, estado después
-                self.mc.batchwrite_wordunits(
-                    headdevice=self.DEV_RESULTADO_VALOR, 
-                    values=palabras_valor
-                )
-                self.mc.batchwrite_wordunits(
-                    headdevice=self.DEV_RESULTADO_FILAS, 
-                    values=[valor_filas]
-                )
-                self.mc.batchwrite_wordunits(
-                    headdevice=self.DEV_TRIGGER, 
-                    values=[self.VAL_EXITO]
-                )
-                
-                print(f"✅ Resultados enviados: Desv={desviacion_mm:.2f}mm ({valor_desviacion}), "
-                      f"Filas={valor_filas}, Estado=ÉXITO({self.VAL_EXITO})")
-            else:
-                # Error: enviar ceros
-                palabras_cero = self._int32_to_words(0)
-                
-                self.mc.batchwrite_wordunits(
-                    headdevice=self.DEV_RESULTADO_VALOR, 
-                    values=palabras_cero
-                )
-                self.mc.batchwrite_wordunits(
-                    headdevice=self.DEV_RESULTADO_FILAS, 
-                    values=[0]
-                )
-                self.mc.batchwrite_wordunits(
-                    headdevice=self.DEV_TRIGGER, 
-                    values=[self.VAL_ERROR]
-                )
-                
-                print(f"❌ Error enviado al PLC: Estado=ERROR({self.VAL_ERROR})")
+            # 1. Convertir Desviación Y (D29, D30)
+            valor_desviacion_y = int(round(desviacion_y_mm * 100.0))
+            palabras_valor_y = self._int32_to_words(valor_desviacion_y)
+            
+            # 2. Convertir Corrección Z (D31, D32)
+            valor_correccion_z = int(round(correccion_z_mm * 100.0))
+            palabras_valor_z = self._int32_to_words(valor_correccion_z)
+
+            # 3. Validar número de filas (D14)
+            valor_filas = max(0, int(num_filas))
+            
+            # ORDEN CRÍTICO: Escribir D29, D31, D14, luego el estado D28
+            
+            # Escribir Desviación Y (D29)
+            self.mc.batchwrite_wordunits(
+                headdevice=self.DEV_RESULTADO_VALOR, 
+                values=palabras_valor_y
+            )
+            
+            # Escribir Corrección Z (D31)
+            self.mc.batchwrite_wordunits(
+                headdevice=self.DEV_RESULTADO_VALOR_Z, 
+                values=palabras_valor_z
+            )
+            
+            # Escribir Filas (D14)
+            self.mc.batchwrite_wordunits(
+                headdevice=self.DEV_RESULTADO_FILAS, 
+                values=[valor_filas]
+            )
+            
+            # Escribir Código de Respuesta (D28)
+            self.mc.batchwrite_wordunits(
+                headdevice=self.DEV_TRIGGER, 
+                values=[codigo_respuesta]
+            )
+            
+            print(f"✅ Resultados DUALES enviados: Y_Desv={desviacion_y_mm:.2f}mm ({valor_desviacion_y}), "
+                    f"Z_Corr={correccion_z_mm:.2f}mm ({valor_correccion_z}), "
+                    f"Filas={valor_filas}, Estado={codigo_respuesta}")
             
             return True
             
@@ -220,13 +222,6 @@ class PLCController:
         Convierte un entero con signo de 32 bits a dos palabras de 16 bits.
         
         Formato PLC: [low_word, high_word]
-        Ejemplo: -1250 → [0xFB1E, 0xFFFF]
-        
-        Args:
-            n: Entero con signo (-2147483648 a 2147483647)
-            
-        Returns:
-            Lista [low_word, high_word]
         """
         # Clamp al rango int32
         n = max(-2147483648, min(n, 2147483647))
